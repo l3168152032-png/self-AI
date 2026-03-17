@@ -1,0 +1,20 @@
+# 忽略所有模型权重
+neuro_final_model/
+neuro_lora_model/
+neuro_brain/
+paraphrase-multilingual-MiniLM-L12-v2/
+
+# 忽略缓存和训练输出
+unsloth_compiled_cache/
+evolution_outputs/
+outputs/
+trainer_output/
+__pycache__/
+*.pt
+*.safetensors
+*.bin
+
+# 忽略日志和环境
+*.log
+venv/
+.env
