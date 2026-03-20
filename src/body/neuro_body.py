@@ -53,13 +53,13 @@ async def trigger_vts(myvts, emotion):
         active_emotions.remove(emotion)
 
 async def watch_logic():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DATA_DIR = os.path.join(BASE_DIR, "data")
-    TOKEN_PATH = os.path.join(BASE_DIR, "pyvts_token.txt")
+    REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    DATA_DIR = os.path.join(REPO_ROOT, "data")
+    TOKEN_PATH = os.path.join(REPO_ROOT, "pyvts_token.txt")
     # 兼容：优先监听 data/ 下的增长文件，回退到旧版根目录文件
     MEMORY_FILE = os.path.join(DATA_DIR, "growth_data.jsonl")
     if not os.path.exists(MEMORY_FILE):
-        MEMORY_FILE = os.path.join(BASE_DIR, "growth_data.jsonl")
+        MEMORY_FILE = os.path.join(REPO_ROOT, "growth_data.jsonl")
     
     myvts = pyvts.vts(port=8001)
     myvts.vts_request = pyvts.vts_request.VTSRequest(

@@ -1,7 +1,9 @@
 from unsloth import FastLanguageModel
 import torch
 
-model_name = "neuro_lora_model" # 指向你刚保存的文件夹
+import os
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+model_name = os.path.join(REPO_ROOT, "neuro_lora_model") # 指向你刚保存的文件夹
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name = model_name,

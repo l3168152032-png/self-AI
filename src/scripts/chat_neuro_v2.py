@@ -15,12 +15,13 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 transformers_logging.set_verbosity_error()
 logging.getLogger("transformers.modeling_attn_mask_utils").setLevel(logging.ERROR)
 
-# 目录基于脚本位置解析，避免从其它工作目录运行导致找不到记忆文件
+# 目录统一基于仓库根目录解析，避免从其它工作目录运行导致找不到记忆文件
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+DATA_DIR = os.path.join(REPO_ROOT, "data")
 
 # 1. 模型加载 (指向你的 LoRA 文件夹)
-model_path = "neuro_lora_model" 
+model_path = os.path.join(REPO_ROOT, "neuro_lora_model")
 
 print("🧠 正在唤醒 Neuro 的长期记忆 (Unsloth 加速版)...")
 model, tokenizer = FastLanguageModel.from_pretrained(
@@ -47,8 +48,7 @@ def record_memory(user_q, ai_a):
 # 3. 异步主逻辑
 async def main():
     # --- 🔐 初始化 VTS 连接 ---
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    TOKEN_PATH = os.path.join(BASE_DIR, "pyvts_token.txt")
+    TOKEN_PATH = os.path.join(REPO_ROOT, "pyvts_token.txt")
     vts_lock = asyncio.Lock()
     
     myvts = pyvts.vts(port=8001)

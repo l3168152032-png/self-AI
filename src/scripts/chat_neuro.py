@@ -6,7 +6,8 @@ import os
 os.environ["HF_HUB_OFFLINE"] = "1"
 
 # 2. 配置路径：指向你的 LoRA 文件夹
-lora_path = "neuro_lora_model" 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+lora_path = os.path.join(REPO_ROOT, "neuro_lora_model") 
 
 print("🧠 正在离线激活 Neuro 的神经网络...")
 

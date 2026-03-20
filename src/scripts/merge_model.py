@@ -5,8 +5,11 @@ os.environ["HF_HUB_OFFLINE"] = "0"
 from unsloth import FastLanguageModel
 import torch
 
+# 仓库根目录
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+
 # 1. 指向你训练保存的 LoRA 文件夹
-lora_model_dir = "neuro_lora_model" 
+lora_model_dir = os.path.join(REPO_ROOT, "neuro_lora_model")
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name = lora_model_dir,
@@ -17,7 +20,7 @@ model, tokenizer = FastLanguageModel.from_pretrained(
 # 2. 执行合并并保存
 print("🏗️ 正在缝合 Neuro 的灵魂与躯壳（离线模式）...")
 model.save_pretrained_merged(
-    "neuro_final_model", 
+    os.path.join(REPO_ROOT, "neuro_final_model"),
     tokenizer, 
     save_method = "merged_16bit",
 )

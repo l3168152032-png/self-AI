@@ -1,8 +1,10 @@
 from unsloth import FastLanguageModel
 import torch
+import os
 
 # 1. 指向你训练好的成果文件夹
-model_path = "neuro_persona_finished" 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+model_path = os.path.join(REPO_ROOT, "neuro_persona_finished") 
 
 # 2. 加载模型（原理：加载基础模型 + 合并你的性格补丁）
 model, tokenizer = FastLanguageModel.from_pretrained(

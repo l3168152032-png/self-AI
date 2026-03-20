@@ -19,5 +19,5 @@ __pycache__/
 venv/
 .env
 
-# 忽略运行时生成的临时记忆文件（训练归档后会合并到根目录 history_growth.jsonl）
-data/
+# 忽略运行时生成的临时记忆文件（进化后会归档到 history_growth.jsonl）
+data/growth_data.jsonl

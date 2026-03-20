@@ -2,6 +2,10 @@ import json
 import re
 import os
 
+# 仓库根目录与数据目录（避免依赖当前工作目录）
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+DATA_DIR = os.path.join(REPO_ROOT, "data")
+
 def clean_neuro_speech(text):
     # 移除语气词前缀和括号内的动作/内心独白
     text = re.sub(r"^(啧|哼|喂|……|啧……|哼……|喂……|嘘|哈|啧。|哼。|喂。)\。?(\s*)", "", text)
@@ -17,18 +21,18 @@ def clean_neuro_speech(text):
     return text
 
 # --- 自动处理 ---
-current_dir = os.getcwd()
+current_dir = DATA_DIR
 jsonl_files = [f for f in os.listdir(current_dir) if f.endswith('.jsonl') and '理性版' not in f]
 
 if not jsonl_files:
     print(f"❌ 错误：在 {current_dir} 没找到任何 .jsonl 文件！")
 else:
     input_file = jsonl_files[0]
-    output_file = "b站语料_理性版.jsonl"
+    output_file = os.path.join(current_dir, "b站语料_理性版.jsonl")
     print(f"🔍 正在清洗: {input_file} ...")
 
     processed_count = 0
-    with open(input_file, 'r', encoding='utf-8') as f, open(output_file, 'w', encoding='utf-8') as out:
+    with open(os.path.join(current_dir, input_file), 'r', encoding='utf-8') as f, open(output_file, 'w', encoding='utf-8') as out:
         for i, line in enumerate(f, 1):
             line = line.strip()
             if not line: continue

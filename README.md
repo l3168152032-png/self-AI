@@ -14,12 +14,13 @@ Neuro_Live 是一个基于 **Unsloth** 加速技术的 LLM 实验框架。它集
 
 
 ```text
-Neuro_Live/
-├── neuro_brain/          # 核心推理逻辑与模型加载
-├── neuro_lora_model/     # 存储微调生成的 LoRA 权重 (Local Only)
-├── evolve_neuro.py       # 自动化演化训练脚本
-├── train.py              # 模型微调入口
-└── chat_neuro_v2.py      # 流式交互对话界面
+self-AI/
+├── src/
+│   ├── core/            # 核心推理与检索模块
+│   ├── body/            # VTS 身体/表情控制模块
+│   └── scripts/         # 运行入口脚本（chat/train/evolve/start/...）
+├── data/                # JSONL 记忆与训练数据
+└── ref_audio/          # TTS 参考音频（可选）
 ```
 
 ##  性能表现
@@ -39,12 +40,17 @@ pip install transformers datasets
 
 ###  模型训练 (Fine-tuning)
 ```bash
-python train.py
+python src/scripts/train.py
 ```
 
 ###  启动交互
 ```bash
-python chat_neuro_v2.py
+python src/scripts/chat_neuro_v2.py
+```
+
+### 运行整套（VTS + 大脑）
+```bash
+python src/scripts/start_neuro.py
 ```
 
 ##  注意事项
@@ -55,7 +61,7 @@ python chat_neuro_v2.py
 * 本仓库建议不打包 `model/runtime` 等大体积文件；运行时请在仓库旁边准备相关资源目录。
 * TTS 参考音频默认使用 `ref_audio/neuro_ref.wav`；如不在该位置，可设置 `NEURO_REF_AUDIO_PATH`。
 * 记忆检索 embedding 默认尝试使用本地的 `paraphrase-multilingual-MiniLM-L12-v2`（可设置 `NEURO_EMBED_MODEL_PATH` 指向离线路径）。
-* 运行过程中生成的临时记忆会写入 `data/growth_data.jsonl`（可丢弃）；进化后会归档到 `history_growth.jsonl`。
+* 运行过程中生成的临时记忆会写入 `data/growth_data.jsonl`（可丢弃）；进化后会归档到 `data/history_growth.jsonl`。
 
 ## 文件分类（仓库当前结构）
 见 [`PROJECT_STRUCTURE.md`](./PROJECT_STRUCTURE.md)。

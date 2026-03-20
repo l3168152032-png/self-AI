@@ -1,18 +1,23 @@
 import os
-# 手动告诉 Python：去这个文件夹里找 DLL！
-os.add_dll_directory(r"E:\Anaconda\envs\neuro_lora_new\Library\bin")
+
+# 可选：通过环境变量注入 DLL 搜索路径（避免写死到你本机的盘符/目录）
+_dll_dir = os.environ.get("NEURO_DLL_DIR")
+if _dll_dir and os.path.exists(_dll_dir):
+    os.add_dll_directory(_dll_dir)
 import subprocess
 import time
 import sys
-import os
 
 def start_neuro():
+    REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    body_script = os.path.join(REPO_ROOT, "src", "body", "neuro_body.py")
+    brain_script = os.path.join(REPO_ROOT, "src", "core", "neuro_brain.py")
     print("🌟 Neuro 全系统启动序列开始...")
 
     # 1. 启动身体控制中心 (neuro_body.py)
     # 使用 subprocess.Popen 异步启动，不阻塞主进程
     print("📡 正在唤醒身体控制中心...")
-    body_process = subprocess.Popen([sys.executable, "neuro_body.py"])
+    body_process = subprocess.Popen([sys.executable, body_script], cwd=REPO_ROOT)
     
     # 稍微等 2 秒，确保 VTS 连接成功后再启动大脑
     time.sleep(2)
@@ -22,7 +27,7 @@ def start_neuro():
     try:
         # 使用 run 启动大脑，因为它需要我们在终端输入【你】: xxx
         # 这会占用当前的终端窗口
-        subprocess.run([sys.executable, "neuro_brain.py"])
+        subprocess.run([sys.executable, brain_script], cwd=REPO_ROOT)
     except KeyboardInterrupt:
         print("\n\n👋 正在关闭 Neuro 系统...")
     finally:

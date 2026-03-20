@@ -1,4 +1,4 @@
-﻿import os
+import os
 import torch
 import unsloth.models._utils
 from unsloth import FastLanguageModel
@@ -6,8 +6,15 @@ from datasets import load_dataset, concatenate_datasets
 from trl import SFTTrainer
 from transformers import TrainingArguments
 
+# 仓库根目录与数据目录（避免依赖当前工作目录）
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+DATA_DIR = os.path.join(REPO_ROOT, "data")
+
 # --- 1. 环境初始化 ---
-os.environ["TRITON_PTXAS_PATH"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin\ptxas.exe"
+os.environ["TRITON_PTXAS_PATH"] = os.environ.get(
+    "TRITON_PTXAS_PATH",
+    r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin\ptxas.exe",
+)
 unsloth.models._utils.get_statistics = lambda *args, **kwargs: None
 os.environ["UNSLOTH_USE_TRITON"] = "0"
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
@@ -72,16 +79,18 @@ def formatting_prompts_func(examples):
 data_sources = []
 
 # A. 加载基础人格 (必须存在)
-data_sources.append(load_dataset("json", data_files="neuro_train.jsonl", split="train"))
+data_sources.append(load_dataset("json", data_files=os.path.join(DATA_DIR, "neuro_train.jsonl"), split="train"))
 
 # B. 加载长期记忆 (如果存在)
-if os.path.exists("history_growth.jsonl") and os.path.getsize("history_growth.jsonl") > 0:
-    data_sources.append(load_dataset("json", data_files="history_growth.jsonl", split="train"))
+history_path = os.path.join(DATA_DIR, "history_growth.jsonl")
+if os.path.exists(history_path) and os.path.getsize(history_path) > 0:
+    data_sources.append(load_dataset("json", data_files=history_path, split="train"))
     print("📚 已载入历史长期记忆。")
 
 # C. 加载短期缓存 (如果还没归档且有内容)
-if os.path.exists("growth_data.jsonl") and os.path.getsize("growth_data.jsonl") > 0:
-    data_sources.append(load_dataset("json", data_files="growth_data.jsonl", split="train"))
+growth_path = os.path.join(DATA_DIR, "growth_data.jsonl")
+if os.path.exists(growth_path) and os.path.getsize(growth_path) > 0:
+    data_sources.append(load_dataset("json", data_files=growth_path, split="train"))
     print("🧠 已载入尚未归档的短期记忆。")
 
 # 合并所有数据集
@@ -118,6 +127,6 @@ trainer = SFTTrainer(
 print("🔥 Neuro 正在深度融合所有记忆...")
 trainer.train()
 
-model.save_pretrained("neuro_lora_model") 
-tokenizer.save_pretrained("neuro_lora_model")
+model.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model")) 
+tokenizer.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
 print("✅ 转生完成！Neuro 现在既有深度人设，也记得你们的所有过去。")

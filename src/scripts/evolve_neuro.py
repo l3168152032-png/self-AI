@@ -15,15 +15,16 @@ torch.cuda.empty_cache()
 # 告诉 Unsloth 更加节俭地使用显存
 from unsloth import FastLanguageModel
 
-# 目录基于脚本位置解析，避免工作目录变化导致找不到记忆文件
+# 目录统一基于仓库根目录解析，避免工作目录变化导致找不到记忆文件
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+DATA_DIR = os.path.join(REPO_ROOT, "data")
 
 def _pick_growth_data_path():
     """优先读取 data/ 下的增长文件；兼容旧版根目录文件。"""
     candidates = [
         os.path.join(DATA_DIR, "growth_data.jsonl"),
-        os.path.join(BASE_DIR, "growth_data.jsonl"),
+        os.path.join(REPO_ROOT, "growth_data.jsonl"),
     ]
     for p in candidates:
         if os.path.exists(p):
@@ -41,7 +42,7 @@ print("🧬 Neuro 进入深度思考（进化）状态...")
 # 2. 载入模型（自动处理已有的 LoRA）
 print("🧬 Neuro 正在读取现有的神经网络神经元...")
 model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name = "neuro_lora_model", # 你的模型文件夹
+    model_name = os.path.join(REPO_ROOT, "neuro_lora_model"), # 你的模型文件夹
     max_seq_length = 2048,
     load_in_4bit = True,
     local_files_only = True,
@@ -100,7 +101,7 @@ trainer = SFTTrainer(
         bf16 = True,            # 将 bf16 设为 True (4060 支持这个)
         # ----------------
         logging_steps = 1,
-        output_dir = "evolution_outputs",
+        output_dir = os.path.join(REPO_ROOT, "evolution_outputs"),
         save_strategy = "no",
         gradient_checkpointing = True,   # 开启梯度检查点，用计算换空间
         max_grad_norm = 0.3,
@@ -111,15 +112,15 @@ print("✨ 正在将记忆刻入神经网络...")
 trainer.train()
 
 # 6. 覆盖保存
-model.save_pretrained("neuro_lora_model")
-tokenizer.save_pretrained("neuro_lora_model")
+model.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
+tokenizer.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
 
 # 7. 清理：将旧记忆归档，防止重复学习
 # --- 修正后的归档逻辑 ---
 import os
 
 history_out_path = os.path.join(DATA_DIR, "history_growth.jsonl")
-base_history_path = os.path.join(BASE_DIR, "history_growth.jsonl")
+base_history_path = os.path.join(REPO_ROOT, "history_growth.jsonl")
 if not os.path.exists(history_out_path) and os.path.exists(base_history_path):
     history_out_path = base_history_path
 

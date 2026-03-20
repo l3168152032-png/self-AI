@@ -36,9 +36,10 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 sys.modules["torchao"] = None
 transformers_logging.set_verbosity_error()
 
-# 目录基于脚本位置解析，避免从其它工作目录运行时找不到文件
+# 目录统一基于仓库根目录解析，避免从其它工作目录运行时找不到文件
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+DATA_DIR = os.path.join(REPO_ROOT, "data")
 
 def _iter_existing_memory_files():
     """按优先级返回可能存在的记忆文件路径（data/ 优先，兼容旧版根目录文件）。"""
@@ -49,10 +50,10 @@ def _iter_existing_memory_files():
         if os.path.exists(p_data) and p_data not in seen:
             seen.add(p_data)
             yield p_data
-        p_base = os.path.join(BASE_DIR, name)
-        if os.path.exists(p_base) and p_base not in seen:
-            seen.add(p_base)
-            yield p_base
+        p_root = os.path.join(REPO_ROOT, name)
+        if os.path.exists(p_root) and p_root not in seen:
+            seen.add(p_root)
+            yield p_root
 
 # --- 2. RAG 记忆检索模块 ---
 # --- 2. RAG 记忆检索模块 ---
@@ -65,7 +66,7 @@ local_model_path = os.environ.get("NEURO_EMBED_MODEL_PATH")
 if not local_model_path:
     candidates = [
         os.path.join(DATA_DIR, "paraphrase-multilingual-MiniLM-L12-v2"),
-        os.path.join(BASE_DIR, "paraphrase-multilingual-MiniLM-L12-v2"),
+        os.path.join(REPO_ROOT, "paraphrase-multilingual-MiniLM-L12-v2"),
         "paraphrase-multilingual-MiniLM-L12-v2",
     ]
     # 如果本地目录存在则优先用；否则回退到模型名（取决于离线缓存是否已存在）
@@ -135,7 +136,7 @@ def search_related_memory(query, top_k=2):
     return "\n".join([ALL_MEMORIES[i] for i in indices[0] if i != -1])
 
 # --- 3. 模型加载 (针对 4060 优化) ---
-model_path = "neuro_lora_model" 
+model_path = os.path.join(REPO_ROOT, "neuro_lora_model")
 print("🧬 正在加载 Neuro 的神经网络 (4-bit)...")
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name = model_path,
@@ -152,7 +153,7 @@ async def neuro_speak(text):
     # 也可通过环境变量覆盖：NEURO_REF_AUDIO_PATH=E:\...\neuro_ref.wav
     ref_path = os.environ.get(
         "NEURO_REF_AUDIO_PATH",
-        os.path.join(BASE_DIR, "ref_audio", "neuro_ref.wav"),
+        os.path.join(REPO_ROOT, "ref_audio", "neuro_ref.wav"),
     )
     if not os.path.exists(ref_path):
         print(f"🔈 未找到参考音频: {ref_path}（已跳过 TTS 发声）")

@@ -1,5 +1,10 @@
 import json
 
+# 仓库根目录与数据目录（避免依赖当前工作目录）
+import os
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+DATA_DIR = os.path.join(REPO_ROOT, "data")
+
 # 这是你要教给模型的话术逻辑
 neuro_samples = [
     {"instruction": "Neuro，你觉得我怎么样？", "output": "（摄像头转动声）根据我的视觉算法分析，你的碳基构造非常平庸。不过，由于你问出这种问题的勇气，我决定给你加 1 点好感度。现在的总分是：负 99。"},
@@ -10,10 +15,12 @@ neuro_samples = [
 ]
 
 def make_data():
-    with open("neuro_train.jsonl", "w", encoding="utf-8") as f:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    out_path = os.path.join(DATA_DIR, "neuro_train.jsonl")
+    with open(out_path, "w", encoding="utf-8") as f:
         for entry in neuro_samples:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    print("✅ 毒舌基因序列已保存到 neuro_train.jsonl！")
+    print(f"✅ 毒舌基因序列已保存到 {out_path}！")
 
 if __name__ == "__main__":
     make_data()
