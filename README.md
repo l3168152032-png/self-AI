@@ -1,4 +1,3 @@
-```markdown
 # Neuro_Live: 高性能自演化大语言模型微调与推理框架
 
 Neuro_Live 是一个基于 **Unsloth** 加速技术的 LLM 实验框架。它集成了 LoRA 权重管理、自动化数据演化以及高效推理模块，旨在探索大规模语言模型的自我优化与高性能部署。
@@ -57,3 +56,6 @@ python chat_neuro_v2.py
 * TTS 参考音频默认使用 `ref_audio/neuro_ref.wav`；如不在该位置，可设置 `NEURO_REF_AUDIO_PATH`。
 * 记忆检索 embedding 默认尝试使用本地的 `paraphrase-multilingual-MiniLM-L12-v2`（可设置 `NEURO_EMBED_MODEL_PATH` 指向离线路径）。
 * 运行过程中生成的临时记忆会写入 `data/growth_data.jsonl`（可丢弃）；进化后会归档到 `history_growth.jsonl`。
+
+## 文件分类（仓库当前结构）
+见 [`PROJECT_STRUCTURE.md`](./PROJECT_STRUCTURE.md)。
