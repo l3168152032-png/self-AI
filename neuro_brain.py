@@ -36,18 +36,40 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 sys.modules["torchao"] = None
 transformers_logging.set_verbosity_error()
 
+# 目录基于脚本位置解析，避免从其它工作目录运行时找不到文件
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+def _iter_existing_memory_files():
+    """按优先级返回可能存在的记忆文件路径（data/ 优先，兼容旧版根目录文件）。"""
+    names = ["history_growth.jsonl", "growth_data.jsonl"]
+    seen = set()
+    for name in names:
+        p_data = os.path.join(DATA_DIR, name)
+        if os.path.exists(p_data) and p_data not in seen:
+            seen.add(p_data)
+            yield p_data
+        p_base = os.path.join(BASE_DIR, name)
+        if os.path.exists(p_base) and p_base not in seen:
+            seen.add(p_base)
+            yield p_base
+
 # --- 2. RAG 记忆检索模块 ---
 # --- 2. RAG 记忆检索模块 ---
 print("🧠 正在尝试从本地路径加载记忆提取器...")
 from sentence_transformers import models, SentenceTransformer
 
-# 这里的路径如果是默认下载的，通常在你的用户文件夹下
-# 如果你之前手动下载到了 D:\Neuro_Backup_2026，请把下面换成那个路径
-local_model_path = r"E:\Neuro_Live\paraphrase-multilingual-MiniLM-L12-v2"
-
-# 如果上面的默认路径不存在，尝试当前目录
-if not os.path.exists(local_model_path):
-    local_model_path = "paraphrase-multilingual-MiniLM-L12-v2"
+# 可选：通过环境变量覆盖 embedding 模型路径（避免硬编码盘符）
+# 例：NEURO_EMBED_MODEL_PATH=D:\某目录\paraphrase-multilingual-MiniLM-L12-v2
+local_model_path = os.environ.get("NEURO_EMBED_MODEL_PATH")
+if not local_model_path:
+    candidates = [
+        os.path.join(DATA_DIR, "paraphrase-multilingual-MiniLM-L12-v2"),
+        os.path.join(BASE_DIR, "paraphrase-multilingual-MiniLM-L12-v2"),
+        "paraphrase-multilingual-MiniLM-L12-v2",
+    ]
+    # 如果本地目录存在则优先用；否则回退到模型名（取决于离线缓存是否已存在）
+    local_model_path = next((c for c in candidates if os.path.exists(c)), candidates[-1])
 
 try:
     # 强制从本地文件夹加载
@@ -83,19 +105,18 @@ def web_search(query):
     
 def get_memories():
     memories = []
-    memory_files = ["history_growth.jsonl", "growth_data.jsonl"]
-    for filename in memory_files:
-        if os.path.exists(filename):
-            print(f"📖 正在从 {filename} 加载记忆...")
-            with open(filename, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        data = json.loads(line)
-                        user_q = data.get('input') or data.get('instruction')
-                        ai_a = data.get('output')
-                        if user_q and ai_a:
-                            memories.append(f"用户: {user_q} | 你答: {ai_a}")
-                    except: continue
+    for filename in _iter_existing_memory_files():
+        print(f"📖 正在从 {filename} 加载记忆...")
+        with open(filename, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    user_q = data.get('input') or data.get('instruction')
+                    ai_a = data.get('output')
+                    if user_q and ai_a:
+                        memories.append(f"用户: {user_q} | 你答: {ai_a}")
+                except:
+                    continue
     return memories
 
 ALL_MEMORIES = get_memories()
@@ -127,8 +148,15 @@ FastLanguageModel.for_inference(model)
 # --- 4. 语音合成模块 (修正路径依赖) ---
 async def neuro_speak(text):
     tts_api_url = "http://127.0.0.1:9880/tts" 
-    # 💡 这里的路径请确保 neuro_ref.wav 已拷贝到项目下的 ref_audio 文件夹
-    ref_path = "E:/Neuro_Live/ref_audio/neuro_ref.wav"
+    # 默认：项目目录下的 ref_audio/neuro_ref.wav
+    # 也可通过环境变量覆盖：NEURO_REF_AUDIO_PATH=E:\...\neuro_ref.wav
+    ref_path = os.environ.get(
+        "NEURO_REF_AUDIO_PATH",
+        os.path.join(BASE_DIR, "ref_audio", "neuro_ref.wav"),
+    )
+    if not os.path.exists(ref_path):
+        print(f"🔈 未找到参考音频: {ref_path}（已跳过 TTS 发声）")
+        return
     
     data = {
         "text": text,
@@ -323,7 +351,9 @@ async def generate_and_save(input_text, is_spontaneous=False):
         asyncio.create_task(neuro_speak(response))
         
         # 记录记忆
-        with open("growth_data.jsonl", "a", encoding="utf-8") as f:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        out_path = os.path.join(DATA_DIR, "growth_data.jsonl")
+        with open(out_path, "a", encoding="utf-8") as f:
             f.write(json.dumps({"input": input_text, "output": response}, ensure_ascii=False) + "\n")
             
     except Exception as e:

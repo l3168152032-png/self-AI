@@ -54,8 +54,12 @@ async def trigger_vts(myvts, emotion):
 
 async def watch_logic():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = os.path.join(BASE_DIR, "data")
     TOKEN_PATH = os.path.join(BASE_DIR, "pyvts_token.txt")
-    MEMORY_FILE = os.path.join(BASE_DIR, "growth_data.jsonl")
+    # 兼容：优先监听 data/ 下的增长文件，回退到旧版根目录文件
+    MEMORY_FILE = os.path.join(DATA_DIR, "growth_data.jsonl")
+    if not os.path.exists(MEMORY_FILE):
+        MEMORY_FILE = os.path.join(BASE_DIR, "growth_data.jsonl")
     
     myvts = pyvts.vts(port=8001)
     myvts.vts_request = pyvts.vts_request.VTSRequest(

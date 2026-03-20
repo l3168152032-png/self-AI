@@ -4,6 +4,10 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 
+# 目录基于脚本位置解析，避免工作目录变化导致找不到文件
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
 # 1. 初始化轻量级模型 (在 CPU 上运行，不占显存)
 print("🧠 正在初始化记忆提取器...")
 embed_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2') 
@@ -39,7 +43,12 @@ def search_memory(query, memories, index, top_k=3):
     return results
 
 # --- 测试运行 ---
-history_file = "history_growth.jsonl"
+history_candidates = [
+    os.path.join(DATA_DIR, "history_growth.jsonl"),
+    os.path.join(BASE_DIR, "history_growth.jsonl"),
+]
+history_file = next((p for p in history_candidates if os.path.exists(p)), history_candidates[0])
+
 if os.path.exists(history_file):
     all_memories = load_memories(history_file)
     memory_index = build_index(all_memories)

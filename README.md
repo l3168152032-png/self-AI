@@ -51,3 +51,9 @@ python chat_neuro_v2.py
 ##  注意事项
 * 本项目不包含预训练模型权重。
 * 请确保本地环境已安装 CUDA 12.1+。
+
+## 路径与外置资源
+* 本仓库建议不打包 `model/runtime` 等大体积文件；运行时请在仓库旁边准备相关资源目录。
+* TTS 参考音频默认使用 `ref_audio/neuro_ref.wav`；如不在该位置，可设置 `NEURO_REF_AUDIO_PATH`。
+* 记忆检索 embedding 默认尝试使用本地的 `paraphrase-multilingual-MiniLM-L12-v2`（可设置 `NEURO_EMBED_MODEL_PATH` 指向离线路径）。
+* 运行过程中生成的临时记忆会写入 `data/growth_data.jsonl`（可丢弃）；进化后会归档到 `history_growth.jsonl`。

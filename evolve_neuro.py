@@ -14,8 +14,25 @@ torch.cuda.empty_cache()
 
 # 告诉 Unsloth 更加节俭地使用显存
 from unsloth import FastLanguageModel
+
+# 目录基于脚本位置解析，避免工作目录变化导致找不到记忆文件
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+def _pick_growth_data_path():
+    """优先读取 data/ 下的增长文件；兼容旧版根目录文件。"""
+    candidates = [
+        os.path.join(DATA_DIR, "growth_data.jsonl"),
+        os.path.join(BASE_DIR, "growth_data.jsonl"),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return candidates[0]
+
 # 1. 检查是否有新记忆
-if not os.path.exists("growth_data.jsonl"):
+growth_data_path = _pick_growth_data_path()
+if not os.path.exists(growth_data_path):
     print("❌ 找不到 growth_data.jsonl，Neuro 觉得没什么好学的。")
     exit()
 
@@ -42,7 +59,7 @@ model = FastLanguageModel.for_training(model)
 print("✅ 已接管现有适配器，准备注入新记忆...")
 
 # 4. 载入并格式化数据
-dataset = load_dataset("json", data_files="growth_data.jsonl", split="train")
+dataset = load_dataset("json", data_files=growth_data_path, split="train")
 
 def format_prompt(sample):
     # 尝试获取 instruction，如果没有，就用默认的理性人设
@@ -101,16 +118,22 @@ tokenizer.save_pretrained("neuro_lora_model")
 # --- 修正后的归档逻辑 ---
 import os
 
-if os.path.exists("growth_data.jsonl"):
+history_out_path = os.path.join(DATA_DIR, "history_growth.jsonl")
+base_history_path = os.path.join(BASE_DIR, "history_growth.jsonl")
+if not os.path.exists(history_out_path) and os.path.exists(base_history_path):
+    history_out_path = base_history_path
+
+if os.path.exists(growth_data_path):
     # 如果历史文件已存在，就把新内容接在后面
-    with open("growth_data.jsonl", "r", encoding="utf-8") as f_src:
+    with open(growth_data_path, "r", encoding="utf-8") as f_src:
         new_data = f_src.read()
     
-    with open("history_growth.jsonl", "a", encoding="utf-8") as f_dest:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(history_out_path, "a", encoding="utf-8") as f_dest:
         f_dest.write(new_data)
     
     # 删除已经处理完的临时增长文件
-    os.remove("growth_data.jsonl")
+    os.remove(growth_data_path)
     print("✅ 进化完成！新记忆已成功合并至 history_growth.jsonl。")
 else:
     print("⚠️ 未发现 growth_data.jsonl，跳过归档。")

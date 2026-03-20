@@ -15,6 +15,10 @@ os.environ["TRANSFORMERS_OFFLINE"] = "1"
 transformers_logging.set_verbosity_error()
 logging.getLogger("transformers.modeling_attn_mask_utils").setLevel(logging.ERROR)
 
+# 目录基于脚本位置解析，避免从其它工作目录运行导致找不到记忆文件
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
 # 1. 模型加载 (指向你的 LoRA 文件夹)
 model_path = "neuro_lora_model" 
 
@@ -35,7 +39,9 @@ def record_memory(user_q, ai_a):
         "input": user_q, 
         "output": ai_a
     }
-    with open("growth_data.jsonl", "a", encoding="utf-8") as f:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    out_path = os.path.join(DATA_DIR, "growth_data.jsonl")
+    with open(out_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 # 3. 异步主逻辑
