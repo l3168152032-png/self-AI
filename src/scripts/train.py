@@ -11,10 +11,19 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 DATA_DIR = os.path.join(REPO_ROOT, "data")
 
 # --- 1. 环境初始化 ---
-os.environ["TRITON_PTXAS_PATH"] = os.environ.get(
-    "TRITON_PTXAS_PATH",
-    r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin\ptxas.exe",
-)
+# 自动探测 CUDA 安装路径，不再硬编码
+_triton_path = os.environ.get("TRITON_PTXAS_PATH", "")
+if not _triton_path:
+    _cuda_home = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH") or ""
+    _ptxas_candidates = [
+        os.path.join(_cuda_home, "bin", "ptxas.exe"),
+        r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin\ptxas.exe",
+        r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin\ptxas.exe",
+    ]
+    for _c in _ptxas_candidates:
+        if os.path.exists(_c):
+            os.environ["TRITON_PTXAS_PATH"] = _c
+            break
 unsloth.models._utils.get_statistics = lambda *args, **kwargs: None
 os.environ["UNSLOTH_USE_TRITON"] = "0"
 os.environ["TORCH_COMPILE_DISABLE"] = "1"

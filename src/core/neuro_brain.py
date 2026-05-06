@@ -33,6 +33,7 @@ warnings.filterwarnings("ignore")
 os.environ["UNSLOTH_SKIP_PATCHES"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
+# 阻止 unsloth 尝试导入 torchao（当前环境未安装），避免 ImportError
 sys.modules["torchao"] = None
 transformers_logging.set_verbosity_error()
 
@@ -83,26 +84,19 @@ try:
     print("✅ 记忆提取器本地加载成功！")
 
 except Exception as e:
-    print(f"❌ 本地加载依然失败: {e}")
-    print("💡 临时对策：由于我们要先跑通逻辑，我为你创建一个‘随机生成器’作为占位符，不影响对话。")
-    # 这是一个保底的 Mock 类，防止程序因为 RAG 挂掉而跑不起来
-    class MockEmbedder:
-        def encode(self, sentences): return np.random.rand(len(sentences), 384)
-    embed_model = MockEmbedder()
-
-except Exception as e:
-    print(f"⚠️ 自动加载失败，尝试强制修复模式: {e}")
-    # 最后的保底方案：换一个更现代、结构更简单的模型名
-    embed_model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2', device="cpu")
+    print(f"⚠️ [警告] 记忆提取器加载失败: {e}")
+    print("💡 RAG 记忆检索已禁用，Neuro 将只基于当前对话上下文回复。")
+    embed_model = None
 
 def web_search(query):
     try:
         print(f"🌐 Neuro 正在潜入互联网搜索: {query}...")
         with DDGS() as ddgs:
             results = [r['body'] for r in ddgs.text(query, max_results=3)]
-            return "\n".join(results)
+            return "\n".join(results) if results else ""
     except Exception as e:
-        return f"网络连接受阻: {e}"
+        print(f"⚠️ 网络搜索失败: {e}")
+        return ""
     
 def get_memories():
     memories = []
@@ -116,14 +110,14 @@ def get_memories():
                     ai_a = data.get('output')
                     if user_q and ai_a:
                         memories.append(f"用户: {user_q} | 你答: {ai_a}")
-                except:
+                except (json.JSONDecodeError, KeyError):
                     continue
     return memories
 
-ALL_MEMORIES = get_memories()
+ALL_MEMORIES = get_memories() if embed_model is not None else []
 MEMORY_INDEX = None
 
-if ALL_MEMORIES:
+if ALL_MEMORIES and embed_model is not None:
     print(f"📚 正在索引 {len(ALL_MEMORIES)} 条历史往事...")
     embeddings = embed_model.encode(ALL_MEMORIES)
     MEMORY_INDEX = faiss.IndexFlatL2(embeddings.shape[1])

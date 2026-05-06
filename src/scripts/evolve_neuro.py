@@ -1,19 +1,16 @@
-from unsloth import FastLanguageModel
 import torch
 from trl import SFTTrainer
 from transformers import TrainingArguments
 from datasets import load_dataset
 import os
-import torch
 import gc
+from unsloth import FastLanguageModel
 import unsloth
 unsloth.USE_FUSED_CE = False  # 禁用融合交叉熵，改用标准模式，虽然慢一点但稳
+
 # 强力清理残留显存
 gc.collect()
 torch.cuda.empty_cache()
-
-# 告诉 Unsloth 更加节俭地使用显存
-from unsloth import FastLanguageModel
 
 # 目录统一基于仓库根目录解析，避免工作目录变化导致找不到记忆文件
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -116,25 +113,26 @@ model.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
 tokenizer.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
 
 # 7. 清理：将旧记忆归档，防止重复学习
-# --- 修正后的归档逻辑 ---
-import os
-
 history_out_path = os.path.join(DATA_DIR, "history_growth.jsonl")
 base_history_path = os.path.join(REPO_ROOT, "history_growth.jsonl")
 if not os.path.exists(history_out_path) and os.path.exists(base_history_path):
     history_out_path = base_history_path
 
 if os.path.exists(growth_data_path):
-    # 如果历史文件已存在，就把新内容接在后面
     with open(growth_data_path, "r", encoding="utf-8") as f_src:
         new_data = f_src.read()
-    
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(history_out_path, "a", encoding="utf-8") as f_dest:
-        f_dest.write(new_data)
-    
-    # 删除已经处理完的临时增长文件
-    os.remove(growth_data_path)
+
+    if new_data.strip():
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(history_out_path, "a", encoding="utf-8") as f_dest:
+            f_dest.write(new_data)
+            f_dest.flush()
+            os.fsync(f_dest.fileno())
+
+    # rename-then-delete 防止中途崩溃丢数据
+    bak_path = growth_data_path + ".bak"
+    os.rename(growth_data_path, bak_path)
+    os.remove(bak_path)
     print("✅ 进化完成！新记忆已成功合并至 history_growth.jsonl。")
 else:
     print("⚠️ 未发现 growth_data.jsonl，跳过归档。")
