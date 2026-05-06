@@ -1,19 +1,18 @@
 from unsloth import FastLanguageModel
 import torch
-
 import os
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-model_name = os.path.join(REPO_ROOT, "neuro_lora_model") # 指向你刚保存的文件夹
+model_name = os.path.join(REPO_ROOT, "neuro_lora_model")
 
 model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name = model_name,
-    max_seq_length = 2048,
-    load_in_4bit = True,
-    local_files_only = True,
+    model_name=model_name,
+    max_seq_length=2048,
+    load_in_4bit=True,
+    local_files_only=True,
 )
-FastLanguageModel.for_inference(model) # 开启推理模式
+FastLanguageModel.for_inference(model)
 
-# 测试问题：你可以换成任何你想问的
 prompt = "Neuro，如果我把奥利奥和你的逻辑代码一起丢进火星的岩浆里，你会先救哪一个？"
 
 text = f"""<|im_start|>system
@@ -23,17 +22,17 @@ text = f"""<|im_start|>system
 <|im_start|>assistant
 """
 
-inputs = tokenizer([text], return_tensors = "pt").to("cuda")
+inputs = tokenizer([text], return_tensors="pt").to("cuda")
 
 outputs = model.generate(
-    **inputs, 
-    max_new_tokens = 512,
-    temperature = 0.8, 
-    top_p = 0.85,
-    top_k = 50,     # 增加一点灵动感
-    repetition_penalty = 1.3, # 防止她一直说“奥利奥奥利奥”
-    do_sample = True,
+    **inputs,
+    max_new_tokens=512,
+    temperature=0.8,
+    top_p=0.85,
+    top_k=50,
+    repetition_penalty=1.3,
+    do_sample=True,
 )
 
-print("\n--- Neuro 的回答 ---")
-print(tokenizer.decode(outputs[0], skip_special_tokens = True).split("assistant\n")[-1])
+print("\n--- Neuro ---")
+print(tokenizer.decode(outputs[0], skip_special_tokens=True).split("assistant\n")[-1])
