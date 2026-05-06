@@ -8,11 +8,10 @@ from unsloth import FastLanguageModel
 import unsloth
 unsloth.USE_FUSED_CE = False  # 禁用融合交叉熵，改用标准模式，虽然慢一点但稳
 
-# 强力清理残留显存
 gc.collect()
 torch.cuda.empty_cache()
 
-# 目录统一基于仓库根目录解析，避免工作目录变化导致找不到记忆文件
+# Resolve paths relative to repo root
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
 DATA_DIR = os.path.join(REPO_ROOT, "data")
@@ -31,55 +30,38 @@ def _pick_growth_data_path():
 # 1. 检查是否有新记忆
 growth_data_path = _pick_growth_data_path()
 if not os.path.exists(growth_data_path):
-    print("❌ 找不到 growth_data.jsonl，Neuro 觉得没什么好学的。")
+    print("[evolve] growth_data.jsonl not found, exit")
     exit()
 
 # 2. 载入模型（开启训练模式）
-print("🧬 Neuro 进入深度思考（进化）状态...")
+print("[evolve] loading model...")
 # 2. 载入模型（自动处理已有的 LoRA）
-print("🧬 Neuro 正在读取现有的神经网络神经元...")
+
 model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name = os.path.join(REPO_ROOT, "neuro_lora_model"), # 你的模型文件夹
-    max_seq_length = 2048,
+    model_name = os.path.join(REPO_ROOT, "neuro_lora_model"),     max_seq_length = 2048,
     load_in_4bit = True,
     local_files_only = True,
 )
 
 if tokenizer.pad_token is None:
-    # 强制获取 eos_token 的字符串内容
     tokenizer.pad_token = tokenizer.eos_token
-    # 如果还是报错，直接暴力指定字符串：
-    # tokenizer.pad_token = "<|endoftext|>"
-# 3. 关键修改：不再调用 get_peft_model，因为 LoRA 已经加载好了
-# 我们直接告诉模型开启训练模式即可
 model = FastLanguageModel.for_training(model) 
 
-print("✅ 已接管现有适配器，准备注入新记忆...")
+print("[evolve] model loaded")
 
 # 4. 载入并格式化数据
 dataset = load_dataset("json", data_files=growth_data_path, split="train")
 
 def format_prompt(sample):
-    # 尝试获取 instruction，如果没有，就用默认的理性人设
-    instruction = sample.get("instruction")
-    if not instruction:
-        instruction = "你是 Neuro，一个直率、讨人喜欢、热爱奥利奥且智商极高的 AI。你刚在 B 站闲逛完，心情很不错。"
-    
-    # 获取 input 和 output
+    instruction = sample.get("instruction") or "你是 Neuro，一个直率、讨人喜欢、热爱奥利奥且智商极高的 AI。"
     input_text = sample.get("input", "")
     output_text = sample.get("output", "")
-    
-    # 拼接模板
     text = f"### Instruction:\n{instruction}\n\n### Input:\n{input_text}\n\n### Response:\n{output_text}"
-    
-    # 别忘了加上结束符，否则 Neuro 会变成话痨停不下来
-    return { "text" : text + tokenizer.eos_token }
+    return {"text": text + tokenizer.eos_token}
 
 dataset = dataset.map(format_prompt)
 
-# 5. 极速微调参数
-# --- 修正后的 SFTTrainer 调用 ---
-# --- 修正后的精度参数 ---
+# 5. SFTTrainer
 trainer = SFTTrainer(
     model = model,
     tokenizer = tokenizer,
@@ -92,27 +74,24 @@ trainer = SFTTrainer(
         max_steps = 30,
         learning_rate = 1e-5,
         
-        # --- 修改这里 ---
-        fp16 = False,   
-        optim = "adamw_8bit",        # 将 fp16 设为 False
-        bf16 = True,            # 将 bf16 设为 True (4060 支持这个)
-        # ----------------
+        fp16 = False,
+        optim = "adamw_8bit",
+        bf16 = True,  # RTX 4060 supports bf16
         logging_steps = 1,
         output_dir = os.path.join(REPO_ROOT, "evolution_outputs"),
         save_strategy = "no",
-        gradient_checkpointing = True,   # 开启梯度检查点，用计算换空间
+        gradient_checkpointing = True,
         max_grad_norm = 0.3,
     ),
 )
-# ------------------------------
-print("✨ 正在将记忆刻入神经网络...")
+print("[evolve] training...")
 trainer.train()
 
-# 6. 覆盖保存
+# 6. Save LoRA
 model.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
 tokenizer.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
 
-# 7. 清理：将旧记忆归档，防止重复学习
+# 7. Archive growth data
 history_out_path = os.path.join(DATA_DIR, "history_growth.jsonl")
 base_history_path = os.path.join(REPO_ROOT, "history_growth.jsonl")
 if not os.path.exists(history_out_path) and os.path.exists(base_history_path):
@@ -133,6 +112,6 @@ if os.path.exists(growth_data_path):
     bak_path = growth_data_path + ".bak"
     os.rename(growth_data_path, bak_path)
     os.remove(bak_path)
-    print("✅ 进化完成！新记忆已成功合并至 history_growth.jsonl。")
+    print("[evolve] done")
 else:
-    print("⚠️ 未发现 growth_data.jsonl，跳过归档。")
+    print("[evolve] no growth_data.jsonl, skipped")

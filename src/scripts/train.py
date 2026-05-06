@@ -6,12 +6,11 @@ from datasets import load_dataset, concatenate_datasets
 from trl import SFTTrainer
 from transformers import TrainingArguments
 
-# 仓库根目录与数据目录（避免依赖当前工作目录）
+# Resolve paths relative to repo root
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 DATA_DIR = os.path.join(REPO_ROOT, "data")
 
-# --- 1. 环境初始化 ---
-# 自动探测 CUDA 安装路径，不再硬编码
+# --- 1. Env ---
 _triton_path = os.environ.get("TRITON_PTXAS_PATH", "")
 if not _triton_path:
     _cuda_home = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH") or ""
@@ -29,7 +28,7 @@ os.environ["UNSLOTH_USE_TRITON"] = "0"
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
 torch._dynamo.config.suppress_errors = True
 
-# --- 2. 载入模型 ---
+# --- 2. Load model ---
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name = "unsloth/qwen2.5-7b-instruct-bnb-4bit",
     max_seq_length = 2048,
@@ -37,7 +36,7 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     local_files_only = True,
 )
 
-# --- 3. LoRA 配置 (针对 4060 8G 强化记忆力) ---
+# --- 3. LoRA config ---
 model = FastLanguageModel.get_peft_model(
     model,
     r = 16, 
@@ -48,66 +47,43 @@ model = FastLanguageModel.get_peft_model(
     bias = "none",
 )
 
-# --- 4. 数据聚合逻辑：基础人格 + 短期记忆 + 长期记忆 ---
+# --- 4. Dataset ---
 def formatting_prompts_func(examples):
-    # 兼容性处理：尝试获取所有可能的 Key
-    # B 站数据里似乎主要用 input 和 output
     instructions = examples.get("instruction") or []
     inputs       = examples.get("input") or []
     outputs      = examples.get("output") or []
-    
     texts = []
-    
-    # 计算当前 batch 的最大长度
     max_len = max(len(instructions), len(inputs), len(outputs))
-    
+    default_inst = "你是 Neuro，一个直率、讨人喜欢、热爱奥利奥且智商极高的 AI。"
     for i in range(max_len):
-        # 1. 获取 Instruction（如果数据里没有，就用 Neuro 的标准人设补位）
-        if i < len(instructions) and instructions[i]:
-            inst = instructions[i]
-        else:
-            inst = "你是 Neuro，一个直率、讨人喜欢、热爱奥利奥且智商极高的 AI。你刚在 B 站闲逛完，心情很不错。"
-
-        # 2. 获取 Input
+        inst = instructions[i] if i < len(instructions) and instructions[i] else default_inst
         inp = inputs[i] if i < len(inputs) else ""
-        
-        # 3. 获取 Output（这是灵魂，必须有）
         out = outputs[i] if i < len(outputs) else None
-        
         if out is not None:
-            # 按照 Unsloth/Llama-3 的标准格式拼接
-            text = f"### Instruction:\n{inst}\n\n### Input:\n{inp}\n\n### Response:\n{out}"
-            texts.append(text + tokenizer.eos_token)
-
-    # 最终保险：如果这一批次全失败了，造一个存活样本
+            texts.append(f"### Instruction:\n{inst}\n\n### Input:\n{inp}\n\n### Response:\n{out}" + tokenizer.eos_token)
     if not texts:
         return ["### Instruction:\nSystem\n\n### Response:\nData Loading Failed" + tokenizer.eos_token]
-        
     return texts
 
 data_sources = []
 
-# A. 加载基础人格 (必须存在)
 data_sources.append(load_dataset("json", data_files=os.path.join(DATA_DIR, "neuro_train.jsonl"), split="train"))
 
-# B. 加载长期记忆 (如果存在)
 history_path = os.path.join(DATA_DIR, "history_growth.jsonl")
 if os.path.exists(history_path) and os.path.getsize(history_path) > 0:
     data_sources.append(load_dataset("json", data_files=history_path, split="train"))
-    print("📚 已载入历史长期记忆。")
+    print("[train] loaded history_growth.jsonl")
 
-# C. 加载短期缓存 (如果还没归档且有内容)
 growth_path = os.path.join(DATA_DIR, "growth_data.jsonl")
 if os.path.exists(growth_path) and os.path.getsize(growth_path) > 0:
     data_sources.append(load_dataset("json", data_files=growth_path, split="train"))
-    print("🧠 已载入尚未归档的短期记忆。")
+    print("[train] loaded growth_data.jsonl")
 
-# 合并所有数据集
 combined_dataset = concatenate_datasets(data_sources)
 combined_dataset = combined_dataset.shuffle(seed=3407)
-print(f"📊 总训练样本数: {len(combined_dataset)}")
+print(f"[train] samples: {len(combined_dataset)}")
 
-# --- 5. 训练配置 ---
+# --- 5. Trainer ---
 trainer = SFTTrainer(
     model = model,
     tokenizer = tokenizer,
@@ -122,9 +98,9 @@ trainer = SFTTrainer(
         learning_rate = 3e-4,
         fp16 = False,
         bf16 = True,
-        logging_steps = 1,          # 💡 改成 1，每一步都强制它报平安
-        log_level = "info",         # 💡 强制开启信息级别日志
-        disable_tqdm = False,       # 保持进度条开启
+        logging_steps = 1,
+        log_level = "info",
+        disable_tqdm = False,
         optim = "adamw_8bit",
         weight_decay = 0.01,
         lr_scheduler_type = "linear",
@@ -132,10 +108,10 @@ trainer = SFTTrainer(
     ),
 )
 
-# --- 6. 执行 ---
-print("🔥 Neuro 正在深度融合所有记忆...")
+# --- 6. Run ---
+print("[train] training...")
 trainer.train()
 
 model.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model")) 
 tokenizer.save_pretrained(os.path.join(REPO_ROOT, "neuro_lora_model"))
-print("✅ 转生完成！Neuro 现在既有深度人设，也记得你们的所有过去。")
+print("[train] done")
