@@ -36,7 +36,6 @@ async def trigger_vts(myvts, emotion):
 
         await asyncio.sleep(0.5)
         
-        # 3. 💡 新增：立即触发“嘴部恢复”热键
         # 请确保引号里的名字和 VTS 热键列表里的 Item Name 完全一致
         mouth_fix_req = {
             "apiName": "VTubeStudioPublicAPI",
@@ -87,7 +86,7 @@ async def watch_logic():
             await asyncio.sleep(1)
         await myvts.write_token()
         await myvts.request_authenticate()
-        print("✅ [Body] 授权成功！")
+        print("[Body] 授权成功！")
 
     # --- 2. 核心监听环节 (确保这部分在 async 函数内部) ---
     print("👀 [系统] 开始监听 Neuro 的发言记录...")
